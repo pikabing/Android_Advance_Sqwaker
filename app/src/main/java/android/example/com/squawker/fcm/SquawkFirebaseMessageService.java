@@ -15,6 +15,8 @@
 */
 package android.example.com.squawker.fcm;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ContentValues;
@@ -28,6 +30,9 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
+
+import android.os.Build;
 import android.util.Log;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -49,6 +54,7 @@ public class SquawkFirebaseMessageService extends FirebaseMessagingService {
 
     private static final int NOTIFICATION_MAX_CHARACTERS = 30;
     private static String LOG_TAG = SquawkFirebaseMessageService.class.getSimpleName();
+    private static final String NOTIFICATION_CHANNEL_ID = "reminder_notification_channel";
 
     @Override
     public void onNewToken(String s) {
@@ -145,17 +151,30 @@ public class SquawkFirebaseMessageService extends FirebaseMessagingService {
         }
 
         Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
+
+        NotificationManager notificationManager = (NotificationManager)
+                this.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel mChannel = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    "notification_main_channel",
+                    NotificationManager.IMPORTANCE_HIGH);
+            notificationManager.createNotificationChannel(mChannel);
+        }
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this,NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_duck)
                 .setContentTitle(String.format(getString(R.string.notification_message), author))
                 .setContentText(message)
-                .setAutoCancel(true)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
                 .setSound(defaultSoundUri)
-                .setContentIntent(pendingIntent);
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
 
-        NotificationManager notificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN
+                && Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            notificationBuilder.setPriority(NotificationCompat.PRIORITY_HIGH);
+        }
+        notificationManager.notify(0,notificationBuilder.build());
 
-        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
     }
 }
